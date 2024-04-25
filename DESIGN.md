@@ -10,3 +10,7 @@
 
 * Structure of Array's
 * Entity and Components
+* Many booleans into bits
+* De-duplication of data
+
+

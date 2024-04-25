@@ -26,7 +26,22 @@ namespace gamelogic
     // The RenderSystem interface can be used to implement different rendering systems.
     public interface IRenderSystem : IEngineSystem
     {
-        public RenderID CreateStaticMesh(MeshID meshPath);
+        public RenderID RegisterMesh(MeshID meshID);
+        public RenderID RegisterVisualFx(VisualFxID visualFxID);
+    }
+
+    public interface ISoundSystem : IEngineSystem
+    {
+        public SoundID RegisterSound(SoundID soundID, Vector3 position, float volume, float range);
+    }
+
+    public interface IPerceptionSystem : IEngineSystem
+    {
+        public void RegisterSound(SoundID soundID, Vector3 position, float volume, float range, float duration);
+        public void RegisterSmell(SmellID smellID, Vector3 position, float strength, float range, float duration);
+        public void RegisterVisual(VisualID visualID, Vector3 position, Vector3 direction, float speed, float size);
+
+        public void RegisterReceiver(EntityID entity, PerceptionType types);
     }
 
     // A game world is a 3D grid of cells. 
@@ -79,6 +94,22 @@ namespace gamelogic
         public Vector3 position;
         public Vector3 size;
 
+        // Notes:
+        // You want to execute some logic when an entity enters/leaves the trigger volume.
+
+        // Example:
+        // A door opens when a player enters a trigger volume and it closes when the player leaves.
+        // How do we associate the trigger volume with the door and with the logic to open/close it?
+        
+        // Reasoning:
+        // We could also have this trigger volume send an event to the event system when an entity enters/leaves it, but
+        // we also include the target entity (the door).
+
+        // Then we just need the DoorSystem to register itself to the EventSystem and listen for the 'door open/close' event.
+        // The DoorSystem::Update can then process the events and open/close a door by playing a door open/close animation.
+        // The DoorSystem can have many different doors, and each door can have a different animation, sound, etc.
+
+
         public static void OnEnter(EntityID entity, EventSystem eventSystem)
         {
             eventSystem.SendEvent(entity, EventType.OnEnterTriggerVolume);
@@ -93,13 +124,37 @@ namespace gamelogic
 
     // A missile has a position, direction, velocity and can move. It also
     // has a visual representation (static mesh) and a collision volume.
+    
+    // The MissileResource is a resource that contains the missile's properties and can be used to spawn missiles.
     public class MissileResource : IEntityResource
     {
         public Vector3 size; // Size of the missile
         public float mass; // Mass of the missile
         public float friction; // Friction of the missile
         public MeshID meshID; // The mesh to render the missile
-        public VisualFX explosionID; // Visual Effect to Spawn upon impact
+        public VisualFxID explosionFxID; // Visual Effect to Spawn upon impact
+    }
+
+    public class ParticleEffectResource : IEntityResource
+    {
+        public float duration; // Duration of the particle effect
+        public VisualFxID fxID; // The visual effect to spawn
+    }
+
+    public class SoundEffectResource : IEntityResource
+    {
+        public SoundID soundID; // The sound to play
+        public float volume; // Volume of the sound
+        public float range; // Range of the sound
+        public float duration; // Duration of the sound
+    }
+
+    public class ExplosiveResource : IEntityResource
+    {
+        public Vector3 size; // Size of the missile
+        public MeshID meshID; // The mesh to render the explosive (landmine, C4, etc.
+        public SoundEffectResource explosionSoundID; // Sound Effect to Play upon impact
+        public ParticleEffectResource explosionID; // Visual Effect to Spawn upon impact
     }
 
     public class DynamicTransformComponent : IEntityComponent
@@ -108,6 +163,8 @@ namespace gamelogic
         public Vector3 direction;
         public float acceleration;
         public float velocity;
+        public float mass
+        public float friction;
     }
 
     public class StaticTransformComponent : IEntityComponent

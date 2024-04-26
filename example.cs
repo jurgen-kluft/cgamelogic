@@ -1,36 +1,15 @@
 
 namespace gamelogic
 {
-    struct double3
-    {
-        public double x, y, z;
-    }
-    struct float3
-    {
-        public float x, y, z;
-
-        public float Normalize()
-        {
-            var length = Math.Sqrt(x * x + y * y + z * z);
-            x /= length;
-            y /= length;
-            z /= length;
-            return length;
-        }
-    }
+    struct double3 { public double x, y, z; }
+    struct double4 { public double x, y, z, w; }
+    struct float3 { public float x, y, z; }
     struct float4 { public float x, y, z, w; }
-    struct int3
-    {
-        public int x, y, z;
-    }
+    struct int3 { public int x, y, z; }
+    struct int4 { public int x, y, z, w; }
+    struct float4x4 { public float4 m0, m1, m2, m3; }
 
-    struct float4x4
-    {
-        public float4 m0;
-        public float4 m1;
-        public float4 m2;
-        public float4 m3;
-    }
+    struct EntityId { public long Id; }
 
     struct MeshResourceId { public long Id; }
     struct LightResourceId { public long Id; }
@@ -143,7 +122,12 @@ namespace gamelogic
 
         public BulletId SpawnBullet(float3 position, float3 direction, float speed, float friction, float mass, float damage)
         {
-            // Create a bullet with initial position, direction, speed, friction, mass and damage
+            // Schedule: Create a bullet with initial position, direction, speed, friction, mass and damage
+        }
+
+        public void UpdateCreate(float deltaTime)
+        {
+            
         }
 
         public void UpdateDynamics()
@@ -285,12 +269,12 @@ namespace gamelogic
     public class ParticleEffectResource : IEntityResource
     {
         public float duration; // Duration of the particle effect
-        public VisualFxId fxID; // The visual effect to spawn
+        public VisualFxResourceId fxID; // The visual effect to spawn
     }
 
     public class SoundEffectResource : IEntityResource
     {
-        public SoundInstanceId soundId; // The sound to play
+        public SoundResourceId soundId; // The sound to play
         public float volume; // Volume of the sound
         public float range; // Range of the sound
         public float duration; // Duration of the sound
@@ -307,8 +291,20 @@ namespace gamelogic
     public class MotionComponent : IEntityComponent
     {
         public float3 direction;
-        public float acceleration;
         public float velocity;
+    }
+
+    public class PropulsionComponent : IEntityComponent
+    {
+        // The force is applied in the traversal direction 
+        // A couple of parameters that describe the force attenuation curve over time
+        public float force; // e.g. 3000 N, thrust force of the missile
+        public float duration; // e.g. 600 s (fuel only lasts for 10 minutes)
+    }
+
+    public class GravityComponent : IEntityComponent
+    {
+        public float gravity; // Gravity, e.g. 9.81 m/s^2
     }
 
     public class TransformComponent : IEntityComponent
@@ -339,7 +335,7 @@ namespace gamelogic
     public class MissileResource : IEntityResource
     {
         public float mass; // Mass of the missile
-        public float friction; // Friction of the missile
+        public float drag; // Drag coefficient of the missile in air
         public ExplosiveResource explosiveResource; // The explosive to spawn upon impact
     }
 

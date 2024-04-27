@@ -1,34 +1,41 @@
 
 namespace gamelogic
 {
-    struct double3 { public double x, y, z; }
-    struct double4 { public double x, y, z, w; }
-    struct float3 { public float x, y, z; }
-    struct float4 { public float x, y, z, w; }
-    struct int3 { public int x, y, z; }
-    struct int4 { public int x, y, z, w; }
-    struct float4x4 { public float4 m0, m1, m2, m3; }
+    public interface Math
+    {
+        public static float NormalizeAndReturnLength(ref Float3 v) => 0;
+        public static Float3 Mul(float a, Float3 v) => new Float3() { X = a * v.X, Y = a * v.Y, Z = a * v.Z };
+        public static Float3 Mul(Float3 a, Float3 v) => new Float3() { X = a.X * v.X, Y = a.Y * v.Y, Z = a.Z * v.Z };
 
-    struct EntityId { public long Id; }
+        public static Float3 Add(Float3 a, Float3 b) => new Float3() { X = a.X + b.X, Y = a.Y + b.Y, Z = a.Z + b.Z };
 
-    struct MeshResourceId { public long Id; }
-    struct LightResourceId { public long Id; }
-    struct VisualFxResourceId { public long Id; }
-    struct RenderInstanceId { public long Id; }
+        public static Float3x3 Float3x3_Identity = new Float3x3() { M0 = new Float3() { X = 1, Y = 0, Z = 0 }, M1 = new Float3() { X = 0, Y = 1, Z = 0 }, M2 = new Float3() { X = 0, Y = 0, Z = 1 } };
+        public static Float4x4 Float4x4_Identity = new Float4x4() { M0 = new Float4() { X = 1, Y = 0, Z = 0, W = 0 }, M1 = new Float4() { X = 0, Y = 1, Z = 0, W = 0 }, M2 = new Float4() { X = 0, Y = 0, Z = 1, W = 0 }, M3 = new Float4() { X = 0, Y = 0, Z = 0, W = 1 } };
+    }
 
-    struct SoundResourceId { public long Id; }
-    struct SoundInstanceId { public long Id; }
+    public interface IEngineSystem {}
 
-    struct SoundStimulusResourceId { public long Id; }
-    struct SmellStimulusResourceId { public long Id; }
-    struct VisualStimulusResourceId { public long Id; }
-    struct StimuliInstanceId { public long Id; }
+    public interface IEntityResource {}
+    public struct EntityId { public long Id; }
+
+    // An Entity System is responsible for creating, updating and destroying specific type of entities.
+    public interface IEntitySystem
+    {
+        public void Initialize(IEntityComponentSystem ecs);
+
+        public void UpdateCreate(float deltaTime); // Finalize the requests to create sounds, smells and visuals
+        public void UpdateDynamics(float deltaTime);
+        public void UpdateLogic(float deltaTime);
+    }
+
 
     public interface IRenderSystem : IEntitySystem
     {
         public RenderInstanceId CreateLight(LightResourceId resourceId);
         public RenderInstanceId CreateMesh(MeshResourceId resourceId);
         public RenderInstanceId CreateVisualFx(VisualFxResourceId resourceId);
+
+        // Other functions like: Hide/Show, SetPosition, SetRotation, SetScale, SetColor, SetIntensity, SetRange
 
         public void UpdateCreate(float deltaTime); // Finalize the requests to create meshes and visual effects
         public void UpdateDynamics(float deltaTime); // Update movement, positions and rotations
@@ -37,7 +44,9 @@ namespace gamelogic
 
     public interface ISoundSystem : IEntitySystem
     {
-        public SoundInstanceId CreateSound(SoundResourceId resourceId, float3 position, float volume, float range);
+        public SoundInstanceId CreateSound(SoundResourceId resourceId, Float3 position, float volume, float range);
+
+        // Other functions like: Play, Stop, Pause, SetVolume, SetRange, SetPosition
 
         public void UpdateCreate(float deltaTime); // Finalize the requests to create meshes and visual effects
         public void UpdateDynamics(float deltaTime); // Update movement, positions and rotations
@@ -46,70 +55,108 @@ namespace gamelogic
 
     public interface IPhysicsSystem : IEntitySystem
     {
-        public RigidBodyId CreateStaticAABB(float3 position, float3 size);
-        public RigidBodyId CreateDynamicAABB(float3 position, float3 size, float mass, float friction);
-        public RigidBodyId CreateDynamicCapsule(float3 position, float height, float width, float mass, float friction);
+        public RigidBodyId CreateStaticAabb(Float3 position, Float3 size);
+        public RigidBodyId CreateDynamicAabb(Float3 position, Float3 size, float mass, float friction);
+        public RigidBodyId CreateDynamicCapsule(Float3 position, float height, float width, float mass, float friction);
+
+        // Other functions like: SetPosition, SetRotation, SetScale, SetMass, SetFriction, SetVelocity, SetAngularVelocity
 
         public void UpdateCreate(float deltaTime); // Finalize the requests to create rigid bodies
         public void UpdateDynamics(float deltaTime);
         public void UpdateLogic(float deltaTime);
     }
 
+    public enum PerceptionType
+    {
+        Sound,
+        Smell,
+        Visual
+    }
+
+
+    public struct SoundStimulusResourceId { public long Id; }
+    public struct SmellStimulusResourceId { public long Id; }
+    public struct VisualStimulusResourceId { public long Id; }
+    public struct StimuliInstanceId { public long Id; }
+
     public interface IPerceptionSystem : IEntitySystem
     {
-        public StimuliInstanceId CreateSoundStimuli(SoundStimulusResourceId stimulus, float3 position, float volume, float range, float duration);
-        public StimuliInstanceId CreateSmellStimuli(SmellStimulusResourceId stimulus, float3 position, float strength, float range, float duration);
-        public StimuliInstanceId CreateVisualStimuli(VisualStimulusResourceId stimulus, float3 position, float3 direction, float speed, float size);
+        public StimuliInstanceId CreateSoundStimuli(SoundStimulusResourceId stimulus, Float3 position, float volume, float range, float duration);
+        public StimuliInstanceId CreateSmellStimuli(SmellStimulusResourceId stimulus, Float3 position, float strength, float range, float duration);
+        public StimuliInstanceId CreateVisualStimuli(VisualStimulusResourceId stimulus, Float3 position, Float3 direction, float speed, float size);
 
-        // Stimuli are send to the receiver through the EventSystem
-        public void RegisterReceiver(EntityId entity, PerceptionType types);
+        public void RegisterReceiver(EntityId entity, PerceptionType types);        // Stimuli are send to the receiver through the IEventSystem
 
         public void UpdateCreate(float deltaTime); // Finalize the requests to create sounds, smells and visuals
         public void UpdateDynamics(float deltaTime); // Update the stimuli, fading etc..
         public void UpdateLogic(float deltaTime); // Update the perception logic
     }
 
-    // A game world is a 3D grid of cells. 
-    // Cell size is 64m x 64m x 64m
-    // Each cell can contain a list of game entities (e.g. missiles, missile launchers, trigger volumes)
-    public class GameWorld
+
+    // The IEventSystem is responsible for distributing events to game entities.
+    public struct PropertyId { public long Id; }
+    public struct EventId { public long Id; }
+
+    public struct EventType
     {
-        // The game world where the game is active is part of the whole world.
-        // There is thus a limited area where the game is active, this is the 3D grid of cells.
-
-        // Entities are sorted by their CellId, which is a 3D value into the grid.
-        public List<EntityId> staticEntitiesSortX = new();
-        public List<EntityId> staticEntitiesSortY = new();
-        public List<EntityId> staticEntitiesSortZ = new();
-
-        public List<EntityId> moveableEntitiesSortX = new();
-        public List<EntityId> moveableEntitiesSortY = new();
-        public List<EntityId> moveableEntitiesSortZ = new();
-
-        // Sweep and Prune is used to detect overlaps between entities.
-
-
-        // The cell size is 64 meters
-        public const int cellSize = 64;
-
-        // World size is 64 km x 64 km x 4 km
-        public const int worldCellsOnAxisX = 1024; // Horizontal plane
-        public const int worldCellsOnAxisY = 1024; // Horizontal plane
-        public const int worldCellsOnAxisZ = 64; // Up, max height is 4 km
-
-        // The active area is 1 km x 1 km x 1 km, and each array element is a reference to a cell.
-        // We do this because not every cell is active, and we want to save memory.
-        // When the player moves, we move the cell center.
-        // When a cell is unloaded we save the entity data.
-        public const int gridCellsOnAxisX = 17;
-        public const int gridCellsOnAxisY = 17;
-        public const int gridCellsOnAxisZ = 17;
-
-        public float3 cellBounds = new(cellSize, cellSize, cellSize);
-        public float3 gridBounds = new(cellSize * gridCellsOnAxisX, cellSize * gridCellsOnAxisY, cellSize * gridCellsOnAxisZ);
-        public int3 gridCenter = new(gridCellsOnAxisX / 2, gridCellsOnAxisY / 2, gridCellsOnAxisZ / 2);
-        public double3 worldCenter = new(0, 0, 0);
     }
+
+    public interface IEventSystem : IEngineSystem
+    {
+        public PropertyId RegisterEntityIdProperty(string name);
+        public PropertyId RegisterFloatProperty(string name);
+        public PropertyId RegisterIntProperty(string name);
+
+        // Standard properties
+        public static PropertyId FromProperty;
+
+        public EventId BeginEventWriting();
+
+        public void WriteEventEntityId(PropertyId propertyId, EntityId entityId);
+        public void WriteEventPropertyFloat(PropertyId propertyId, float value);
+        public void WriteEventPropertyInt(PropertyId propertyId, int value);
+
+        public void EndEventWriting();
+        public void BeginEventReading(EventId eventId);
+        public EntityId ReadEventPropertyAsEntityId();
+        public float ReadEventPropertyAsFloat();
+        public int ReadEventPropertyAsInt();
+        public void EndEventReading();
+
+        public void SendEvent(EntityId to, EventId eventId, EventType eventType);
+        public void RegisterEventReceiver(EntityId receiver, EventType e);
+    }
+
+    public interface IEntityComponent {}
+
+
+
+
+
+    public struct Double3 { public double X, Y, Z; }
+    public struct Double4 { public double X, Y, Z, W; }
+    public struct Float3 { public float X, Y, Z; }
+    public struct Float4 { public float X, Y, Z, W; }
+    public struct Int3 { public int X, Y, Z; }
+    public struct Int4 { public int X, Y, Z, W; }
+    public struct Float3x3 { public Float3 M0, M1, M2; }
+    public struct Float4x4 { public Float4 M0, M1, M2, M3; }
+
+    public struct MeshResourceId { public long Id; }
+    public struct LightResourceId { public long Id; }
+    public struct VisualFxResourceId { public long Id; }
+    public struct RenderInstanceId { public long Id; }
+
+    public struct SoundResourceId { public long Id; }
+    public struct SoundInstanceId { public long Id; }
+
+    public struct RigidBodyId { public long Id; }
+
+    public struct ExplosiveResourceId { public long Id; }
+
+
+
+    public struct BulletId { public long Id; }
 
     public class BulletSystem : IEntitySystem
     {
@@ -120,114 +167,59 @@ namespace gamelogic
         // The goal is to be able to process many bullets at the same time, so we need to be able to
         // process many bullets in parallel.
 
-        public BulletId SpawnBullet(float3 position, float3 direction, float speed, float friction, float mass, float damage)
+        public BulletId SpawnBullet(Float3 position, Float3 direction, float speed, float friction, float mass, float damage)
         {
             // Schedule: Create a bullet with initial position, direction, speed, friction, mass and damage
+            return new BulletId() { Id = 0 };
+        }
+
+        public void Initialize(IEntityComponentSystem ecs)
+        {
         }
 
         public void UpdateCreate(float deltaTime)
         {
-            
-        }
-
-        public void UpdateDynamics()
-        {
 
         }
 
-        public void UpdateLogic()
+        public void UpdateDynamics(float deltaTime)
         {
+        }
 
+        public void UpdateLogic(float deltaTime)
+        {
         }
     }
 
 
-    // The EventSystem is responsible for distributing events to game entities.
-    public class EventSystem : IEngineSystem
+    public struct AabbComponent : IEntityComponent
     {
-        public PropertyId RegisterEntityIdProperty(string name) { }
-        public PropertyId RegisterFloatProperty(string name) { }
-        public PropertyId RegisterIntProperty(string name) { }
-
-        // Standard properties
-        public static PropertyId sFrom = RegisterEntityIdProperty("From");
-
-        public EventId BeginEventWriting()
-        {
-        }
-
-        public void WriteEventEntityId(PropertyId propertyId, EntityId entityId) { }
-        public void WriteEventPropertyFloat(PropertyId propertyId, float value) { }
-        public void WriteEventPropertyInt(PropertyId propertyId, int value) { }
-
-        public void EndEventWriting()
-        {
-        }
-
-        public void BeginEventReading(EventId eventId)
-        {
-        }
-
-        public EntityId ReadEventPropertyAsEntityId()
-        {
-            // Make sure this property is an EntityId
-        }
-
-        public float ReadEventPropertyAsFloat()
-        {
-            // Make sure this property is a float
-        }
-
-        public int ReadEventPropertyAsInt()
-        {
-            // Make sure this property is an int
-        }
-
-        public void EndEventReading()
-        {
-        }
-
-        public void SendEvent(EntityId to, EventId eventId)
-        {
-        }
-
-        public void RegisterEventReceiver(EntityId receiver, EventType e)
-        {
-
-        }
-
-        public void Update()
-        {
-
-        }
-    }
-
-    public class AABBComponent : IEntityComponent
-    {
-        public float3 position;
-        public float3 size;
+        public Float3 Position;
+        public Float3 Size;
     }
 
     public class TriggerVolumeResource : IEntityResource
     {
-        public float3 size;
-        public EventType onEnterEventType;
-        public EventType onLeaveEventType;
-        public PropertyId triggerOnEnterPropertyId;
-        public PropertyId triggerOnLeavePropertyId;
+        public Float3 Size;
+        public EventType OnEnterEventType;
+        public EventType OnLeaveEventType;
+        public PropertyId TriggerOnEnterPropertyId;
+        public PropertyId TriggerOnLeavePropertyId;
     }
 
     public class TriggerPropertiesComponent : IEntityComponent
     {
-        public TriggerVolumeResource resource;
+        public TriggerVolumeResource Resource;
     }
+
+    public interface IEntity {}
 
     // A trigger volume is a 3D volume that can detect when an entity enters/touches/leaves it.
     public class TriggerVolume : IEntity
     {
         // Entity components
-        public AABBComponent aabb;
-        public TriggerPropertiesComponent properties;
+        public AabbComponent Aabb;
+        public TriggerPropertiesComponent Properties;
 
         // Notes:
         // You want to execute some logic when an entity enters/leaves the trigger volume.
@@ -240,26 +232,26 @@ namespace gamelogic
         // We could also have this trigger volume send an event to the event system when an entity enters/leaves it, but
         // we also include the target entity (the door).
 
-        // Then we just need the DoorSystem to register itself to the EventSystem and listen for the 'door open/close' event.
+        // Then we just need the DoorSystem to register itself to the IEventSystem and listen for the 'door open/close' event.
         // The DoorSystem::Update can then process the events and open/close a door by playing a door open/close animation.
         // The DoorSystem can have many different doors, and each door can have a different animation, sound, etc.
 
-        public void OnEnter(EntityId entity, EventSystem eventSystem)
+        public void OnEnter(EntityId entity, IEventSystem eventSystem)
         {
             var eventId = eventSystem.BeginEventWriting();
-            eventSystem.WriteEventEntityId(EventSystem.sFrom, entity);
-            eventSystem.WriteEventPropertyInt(triggerOnEnterPropertyId, 1);
+            eventSystem.WriteEventEntityId(IEventSystem.FromProperty, entity);
+            eventSystem.WriteEventPropertyInt(Properties.Resource.TriggerOnEnterPropertyId, 1);
             eventSystem.EndEventWriting();
-            eventSystem.SendEvent(entity, eventId);
+            eventSystem.SendEvent(entity, eventId, new EventType());
         }
 
-        public void OnLeave(EntityId entity, EventSystem eventSystem)
+        public void OnLeave(EntityId entity, IEventSystem eventSystem)
         {
             var eventId = eventSystem.BeginEventWriting();
-            eventSystem.WriteEventEntityId(EventSystem.sFrom, entity);
-            eventSystem.WriteEventPropertyInt(triggerOnLeavePropertyId, 1);
+            eventSystem.WriteEventEntityId(IEventSystem.FromProperty, entity);
+            eventSystem.WriteEventPropertyInt(Properties.Resource.TriggerOnLeavePropertyId, 1);
             eventSystem.EndEventWriting();
-            eventSystem.SendEvent(entity, eventId);
+            eventSystem.SendEvent(entity, eventId, new EventType());
         }
     }
 
@@ -268,159 +260,221 @@ namespace gamelogic
 
     public class ParticleEffectResource : IEntityResource
     {
-        public float duration; // Duration of the particle effect
-        public VisualFxResourceId fxID; // The visual effect to spawn
+        public float Duration; // Duration of the particle effect
+        public VisualFxResourceId FxId; // The visual effect to spawn
     }
 
-    public class SoundEffectResource : IEntityResource
+    public class SoundResource : IEntityResource
     {
-        public SoundResourceId soundId; // The sound to play
-        public float volume; // Volume of the sound
-        public float range; // Range of the sound
-        public float duration; // Duration of the sound
+        public SoundResourceId SoundId; // The sound to play
+        public float Volume; // Volume of the sound
+        public float Range; // Range of the sound
+        public float Duration; // Duration of the sound
     }
-
     public class ExplosiveResource : IEntityResource
     {
-        public float3 size; // Size of the explosive
-        public MeshResourceId meshResourceId; // The mesh to render the explosive (landmine, C4, etc.
-        public SoundResourceId soundResourceId; // Sound Effect to Play upon impact
-        public VisualFxResourceId visualFxResourceId; // Visual Effect to Spawn upon impact
+        public MeshResourceId MeshResourceId; // The mesh to render the explosive (landmine, C4, etc.
+        public SoundResourceId SoundResourceId; // Sound Effect to Play upon impact
+        public VisualFxResourceId VisualFxResourceId; // Visual Effect to Spawn upon impact
+        public Float3 Size; // Size of the explosive
     }
 
     public class MotionComponent : IEntityComponent
     {
-        public float3 direction;
-        public float velocity;
+        public Float3 Direction;
+        public float Velocity;
     }
 
     public class PropulsionComponent : IEntityComponent
     {
-        // The force is applied in the traversal direction 
+        // The force is applied in the traversal direction
         // A couple of parameters that describe the force attenuation curve over time
-        public float force; // e.g. 3000 N, thrust force of the missile
-        public float duration; // e.g. 600 s (fuel only lasts for 10 minutes)
+        public float Force; // e.g. 3000 N, thrust force of the missile
+        public float Duration; // e.g. 600 s (fuel only lasts for 10 minutes)
     }
 
     public class GravityComponent : IEntityComponent
     {
-        public float gravity; // Gravity, e.g. 9.81 m/s^2
+        public float Gravity; // Gravity, e.g. 9.81 m/s^2
     }
 
     public class TransformComponent : IEntityComponent
     {
-        public float4x4 transform;
-
-        public float3 position
-        {
-            get
-            {
-                return new float3(transform.m03, transform.m13, transform.m23);
-            }
-            set
-            {
-                transform.m03 = value.x;
-                transform.m13 = value.y;
-                transform.m23 = value.z;
-            }
-        }
+        public Float3x3 Transform;
+        public Float3 Position;
     }
 
     public class MissilePropertiesComponent : IEntityComponent
     {
-        public MissileResource resource;
+        public MissileResource Resource;
     }
 
     // The MissileResource is a resource that contains the missile's properties and can be used to spawn missiles.
     public class MissileResource : IEntityResource
     {
-        public float mass; // Mass of the missile
-        public float drag; // Drag coefficient of the missile in air
-        public ExplosiveResource explosiveResource; // The explosive to spawn upon impact
+        public float Mass; // Mass of the missile
+        public float Drag; // Drag coefficient of the missile in air
+        public ExplosiveResourceId ExplosiveResource; // The explosive to spawn upon impact
     }
 
     public class Missile : IEntity
     {
-        public MotionComponent motion;
-        public TransformComponent transform;
-        public MissilePropertiesComponent properties;
-
-        // This should be the logic for each missile processed by MissileSystem::Update
-        public void Move(float deltaTime)
-        {
-            var gravity = new float3(0, -9.81f, 0); // This is a direction vector + acceleration
-
-            // The missile moves in a direction with a velocity
-            var position = transform.position + (motion.velocity * motion.direction) * deltaTime;
-
-            motion.velocity = motion.velocity + motion.acceleration * deltaTime;
-
-            // Calculate the direction since it is influenced by gravity
-            motion.direction = (motion.velocity * motion.direction);
-            motion.direction.y += gravity.y * deltaTime;
-            motion.velocity = motion.direction.Normalize();
-
-            // Update transform
-            transform.position = position;
-        }
+        public MotionComponent Motion;
+        public TransformComponent Transform;
+        public MissilePropertiesComponent Properties;
     }
 
+    public struct EntityComponentId { public long Id; }
+    public struct EntityFlagId { public long Id; }
+    public struct EntityResourceId { public long Id; }
 
-    public interface ECS : IEngineSystem
+    public interface IEntityResourceSystem : IEngineSystem
     {
-        public EntityComponentId RegisterComponent(IEntityComponent component);
-        public EntityFlagId RegisterFlag(string name);
+        public T GetResource<T>(EntityResourceId resourceId);
+    }
 
-
+    // An Entity Component System is the back-end, or storage, for creating, updating and destroying entities.
+    public interface IEntityComponentSystem : IEngineSystem
+    {
         public EntityId CreateEntity();
-        public void DestroyEntity(EntityId entity);
+        public void DestroyEntity(EntityId entityId);
 
-        public void AddComponent(EntityId entity, EntityComponentId component);
-        public void RemoveComponent(EntityId entity, EntityComponentId component);
-        public void AddFlag(EntityId entity, E, EntityFlagId flag);
-        public void RemoveFlag(EntityId entity, EntityFlagId flag);
+        public T AddComponent<T>(EntityId entityId);
+        public T GetComponent<T>(EntityId entityId);
+        public void RemoveComponent<T>(EntityId entity);
+        public T AddFlag<T>(EntityId entity);
+        public void RemoveFlag<T>(EntityId entity);
+
+        public void AddSystem(IEntitySystem system);
+        public void RemoveSystem(IEntitySystem system);
 
     }
-
-    public interface IEntitySystem : IEngineSystem
-    {
-        public void UpdateCreate(float deltaTime); // Finalize the requests to create sounds, smells and visuals
-        public void UpdateDynamics(float deltaTime);
-        public void UpdateLogic(float deltaTime);
-    }
-
 
     public class MissileSystem : IEntitySystem
     {
-        private List<EntityId> missiles = new List<EntityId>();
+        private IEntityComponentSystem _ecs; // The EntityComponentSystem
+        private IEntityResourceSystem _ers; // The EntityResourceSystem
+        private List<EntityId> _missileLaunchers = new List<EntityId>();
+        private List<EntityId> _missiles = new List<EntityId>();
 
-        public void SpawnMissile(MissileResource resource, float3 position, float3 direction, float speed)
+        public MissileSystem(IEntityComponentSystem ecs, IEntityResourceSystem ers)
         {
-            var missile = new Missile();
-            missile.motion.direction = direction;
-            missile.motion.velocity = speed;
-            missile.motion.acceleration = friction / mass;
-            missile.transform.position = position;
-            missile.properties.resource = resource;
+            _ecs = ecs;
+            _ers = ers;
 
-            missiles.Add(missile);
+            _ecs.AddSystem(this);
+        }
+
+        private void SpawnMissile(EntityResourceId missileResourceId, Float3 position, Float3 direction, float speed)
+        {
+            var missile = _ecs.CreateEntity();
+
+            // Note: The ComponentIds can be cached for performance
+            var motion = _ecs.AddComponent<MotionComponent>(missile);
+            var transform = _ecs.AddComponent<TransformComponent>(missile);
+            var propulsion = _ecs.AddComponent<PropulsionComponent>(missile);
+            //var gravity = _ecs.AddComponent<GravityComponent>(missile);
+            var properties = _ecs.AddComponent<MissilePropertiesComponent>(missile);
+
+            var missileResource = _ers.GetResource<MissileResource>(missileResourceId);
+
+            motion.Direction = direction;
+            motion.Velocity = speed;
+
+            transform.Transform = Math.Float3x3_Identity;
+            // need to set the position on the transform
+
+            properties.Resource = missileResource;
+
+            propulsion.Force = 3000;
+            propulsion.Duration = 600;
+
+            _missiles.Add(missile);
+        }
+
+        private void MoveMissile(EntityId missile, float deltaTime)
+        {
+            var g = new Float3() { X = 0, Y = -9.81f, Z = 0 };
+
+            // Get the necessary components of the missile
+            var motion = _ecs.GetComponent<MotionComponent>(missile);
+            var transform = _ecs.GetComponent<TransformComponent>(missile);
+            var propulsion = _ecs.GetComponent<PropulsionComponent>(missile);
+            var gravity = _ecs.GetComponent<GravityComponent>(missile); //
+            var properties = _ecs.GetComponent<MissilePropertiesComponent>(missile);
+
+            // The missile moves in a direction with a velocity
+            var position = Math.Add(transform.Position, Math.Mul(deltaTime, Math.Mul(motion.Velocity, motion.Direction)));
+
+            // Calculate the direction since it is influenced by gravity
+            motion.Direction = Math.Mul(motion.Velocity, motion.Direction);
+            motion.Direction.Y += g.Y * deltaTime;
+            motion.Velocity = Math.NormalizeAndReturnLength(ref motion.Direction);
+
+            // Update transform
+            transform.Position = position;
+        }
+
+        private void UpdateLauncher(EntityId missileLauncher)
+        {
+            // Check if the missile launcher should fire a missile
+            // If so, spawn a missile
+        }
+
+        public EntityId SpawnMissileLauncher(EntityResourceId resourceId, Float3 position, Float3 direction)
+        {
+            // Create a missile launcher entity
+            return new EntityId();
+        }
+
+        public void Initialize(IEntityComponentSystem ecs)
+        {
+        }
+
+        public void UpdateCreate(float deltaTime)
+        {
+            // Create the missile launchers
         }
 
         public void UpdateDynamics(float deltaTime)
         {
-            foreach (var missile in missiles)
+            // Update the missile launchers
+            foreach (var missileLauncher in _missileLaunchers)
             {
-                missile.Move(deltaTime);
+                UpdateLauncher(missileLauncher);
             }
+
+            // Update the missiles
+            foreach (var missile in _missiles)
+            {
+                MoveMissile(missile, deltaTime);
+            }
+
 
             // Missiles have moved, but any attached entities (Visual FX, Sound) are not updated.
             // We need to update the RenderSystem and SoundSystem to update the visual and sound effects.
         }
+
+        public void UpdateLogic(float deltaTime)
+        {
+
+        }
+    }
+
+    public class MissileLauncherResource : IEntityResource
+    {
+        public MeshResourceId MeshResourceId; // The mesh to render the missile launcher
+        public SoundResourceId SoundResourceId; // Sound Effect to Play upon firing
+        public VisualFxResourceId VisualFxResourceId; // Visual Effect to Spawn upon firing
+        public Float3 Size; // Size of the missile launcher
     }
 
     // A Missile Launcher has a position, orientation and can fire missiles
     public class MissileLauncher : IEntity
     {
+        public TransformComponent Transform;
+        public MissileLauncherResource Properties;
+        public MissileResource MissileResourceId; // The missile resource to use for spawning missiles
 
     }
 }

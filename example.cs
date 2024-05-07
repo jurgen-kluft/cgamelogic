@@ -3,26 +3,35 @@ namespace gamelogic
 {
     public interface Math
     {
-        public static float NormalizeAndReturnLength(ref Float3 v) => 0;
-        public static Float3 Mul(float a, Float3 v) => new Float3() { X = a * v.X, Y = a * v.Y, Z = a * v.Z };
-        public static Float3 Mul(Float3 a, Float3 v) => new Float3() { X = a.X * v.X, Y = a.Y * v.Y, Z = a.Z * v.Z };
+        public static float NormalizeAndReturnLength(ref float3 v);
+        public static float3 Mul(float a, float3 v);
+        public static float3 Mul(float3 a, float3 v);
+        public static float3 Add(float3 a, float3 b);
 
-        public static Float3 Add(Float3 a, Float3 b) => new Float3() { X = a.X + b.X, Y = a.Y + b.Y, Z = a.Z + b.Z };
-
-        public static Float3x3 Identity3x3 = new Float3x3() { M0 = new Float3() { X = 1, Y = 0, Z = 0 }, M1 = new Float3() { X = 0, Y = 1, Z = 0 }, M2 = new Float3() { X = 0, Y = 0, Z = 1 } };
-        public static Float4x4 Identity4x4 = new Float4x4() { M0 = new Float4() { X = 1, Y = 0, Z = 0, W = 0 }, M1 = new Float4() { X = 0, Y = 1, Z = 0, W = 0 }, M2 = new Float4() { X = 0, Y = 0, Z = 1, W = 0 }, M3 = new Float4() { X = 0, Y = 0, Z = 0, W = 1 } };
+        public static float3x3 Identity3x3;
+        public static float4x4 Identity4x4;
     }
 
-    public interface IEngineSystem {}
+    public interface IEngineSystem
+    {
+        public void Setup();
+        public void Teardown();
 
-    public interface IEntityResource {}
-    
+        public void Update(float deltaTime);
+    }
+
+    public interface IEntityResource
+    {
+        public long Id { get; set; }
+    }
+
     public struct EntityId { public long Id; }
 
     // An Entity System is responsible for creating, updating and destroying specific type of entities.
     public interface IEntitySystem
     {
-        public void Initialize(IEntityComponentSystem ecs);
+        public void Setup(IEntityComponentSystem ecs);
+        public void Teardown();
 
         public void UpdateCreate(float deltaTime); // Finalize the requests to create sounds, smells and visuals
         public void UpdateDynamics(float deltaTime);
@@ -44,7 +53,7 @@ namespace gamelogic
 
     public interface ISoundSystem : IEntitySystem
     {
-        public SoundInstanceId CreateSound(SoundResourceId resourceId, Float3 position, float volume, float range);
+        public SoundInstanceId CreateSound(SoundResourceId resourceId, float3 position, float volume, float range);
 
         // Other functions like: Play, Stop, Pause, SetVolume, SetRange, SetPosition
 
@@ -55,9 +64,9 @@ namespace gamelogic
 
     public interface IPhysicsSystem : IEntitySystem
     {
-        public RigidBodyId CreateStaticAabb(Float3 position, Float3 size);
-        public RigidBodyId CreateDynamicAabb(Float3 position, Float3 size, float mass, float friction);
-        public RigidBodyId CreateDynamicCapsule(Float3 position, float height, float width, float mass, float friction);
+        public RigidBodyId CreateStaticAabb(float3 position, float3 size);
+        public RigidBodyId CreateDynamicAabb(float3 position, float3 size, float mass, float friction);
+        public RigidBodyId CreateDynamicCapsule(float3 position, float height, float width, float mass, float friction);
 
         // Other functions like: SetPosition, SetRotation, SetScale, SetMass, SetFriction, SetVelocity, SetAngularVelocity
 
@@ -81,9 +90,9 @@ namespace gamelogic
 
     public interface IPerceptionSystem : IEntitySystem
     {
-        public StimuliInstanceId CreateSoundStimuli(SoundStimulusResourceId stimulus, Float3 position, float volume, float range, float duration);
-        public StimuliInstanceId CreateSmellStimuli(SmellStimulusResourceId stimulus, Float3 position, float strength, float range, float duration);
-        public StimuliInstanceId CreateVisualStimuli(VisualStimulusResourceId stimulus, Float3 position, Float3 direction, float speed, float size);
+        public StimuliInstanceId CreateSoundStimuli(SoundStimulusResourceId stimulus, float3 position, float volume, float range, float duration);
+        public StimuliInstanceId CreateSmellStimuli(SmellStimulusResourceId stimulus, float3 position, float strength, float range, float duration);
+        public StimuliInstanceId CreateVisualStimuli(VisualStimulusResourceId stimulus, float3 position, float3 direction, float speed, float size);
 
         public void RegisterReceiver(EntityId entity, PerceptionType types);        // Stimuli are send to the receiver through the IEventSystem
 
@@ -127,20 +136,19 @@ namespace gamelogic
         public void RegisterEventReceiver(EntityId receiver, EventType e);
     }
 
-    public interface IEntityComponent {}
+    public interface IEntityComponent { }
 
 
-
-
-
-    public struct Double3 { public double X, Y, Z; }
-    public struct Double4 { public double X, Y, Z, W; }
-    public struct Float3 { public float X, Y, Z; }
-    public struct Float4 { public float X, Y, Z, W; }
-    public struct Int3 { public int X, Y, Z; }
-    public struct Int4 { public int X, Y, Z, W; }
-    public struct Float3x3 { public Float3 M0, M1, M2; }
-    public struct Float4x4 { public Float4 M0, M1, M2, M3; }
+    public struct double3 { public double X, Y, Z; }
+    public struct double4 { public double X, Y, Z, W; }
+    public struct float3 { public float X, Y, Z; }
+    public struct float4 { public float X, Y, Z, W; }
+    public struct short3 { public short X, Y, Z; }
+    public struct int3 { public int X, Y, Z; }
+    public struct int4 { public int X, Y, Z, W; }
+    public struct float3x3 { public float3 M0, M1, M2; }
+    public struct float4x4 { public float4 M0, M1, M2, M3; }
+    public struct worldpos { public sbyte GX, GY, GZ, I; public float LX, LY, LZ; }
 
     public struct MeshResourceId { public long Id; }
     public struct LightResourceId { public long Id; }
@@ -167,7 +175,7 @@ namespace gamelogic
         // The goal is to be able to process many bullets at the same time, so we need to be able to
         // process many bullets in parallel.
 
-        public BulletId SpawnBullet(Float3 position, Float3 direction, float speed, float friction, float mass, float damage)
+        public BulletId SpawnBullet(float3 position, float3 direction, float speed, float friction, float mass, float damage)
         {
             // Schedule: Create a bullet with initial position, direction, speed, friction, mass and damage
             return new BulletId() { Id = 0 };
@@ -194,13 +202,13 @@ namespace gamelogic
 
     public struct AabbComponent : IEntityComponent
     {
-        public Float3 Position;
-        public Float3 Size;
+        public float3 Position;
+        public float3 Size;
     }
 
     public class TriggerVolumeResource : IEntityResource
     {
-        public Float3 Size;
+        public float3 Size;
         public EventType OnEnterEventType;
         public EventType OnLeaveEventType;
         public PropertyId TriggerOnEnterPropertyId;
@@ -212,7 +220,7 @@ namespace gamelogic
         public TriggerVolumeResource Resource;
     }
 
-    public interface IEntity {}
+    public interface IEntity { }
 
     // A trigger volume is a 3D volume that can detect when an entity enters/touches/leaves it.
     public class TriggerVolume : IEntity
@@ -276,12 +284,12 @@ namespace gamelogic
         public MeshResourceId MeshResourceId; // The mesh to render the explosive (landmine, C4, etc.
         public SoundResourceId SoundResourceId; // Sound Effect to Play upon impact
         public VisualFxResourceId VisualFxResourceId; // Visual Effect to Spawn upon impact
-        public Float3 Size; // Size of the explosive
+        public float3 Size; // Size of the explosive
     }
 
     public class MotionComponent : IEntityComponent
     {
-        public Float3 Direction;
+        public float3 Direction;
         public float Velocity;
     }
 
@@ -300,8 +308,8 @@ namespace gamelogic
 
     public class TransformComponent : IEntityComponent
     {
-        public Float3x3 Transform;
-        public Float3 Position;
+        public float3x3 Transform;
+        public float3 Position;
     }
 
     public class MissilePropertiesComponent : IEntityComponent
@@ -343,7 +351,7 @@ namespace gamelogic
         public bool HasComponent<T>(EntityId entityId);
         public T GetComponent<T>(EntityId entityId);
         public void RemoveComponent<T>(EntityId entity);
-        
+
         public T AddFlag<T>(EntityId entity);
         public bool HasFlag<T>(EntityId entity);
         public bool GetFlag<T>(EntityId entity);
@@ -372,7 +380,7 @@ namespace gamelogic
             _ecs.AddSystem(this);
         }
 
-        private void SpawnMissile(EntityResourceId missileResourceId, Float3 position, Float3 direction, float speed)
+        private void SpawnMissile(EntityResourceId missileResourceId, float3 position, float3 direction, float speed)
         {
             var missile = _ecs.CreateEntity();
 
@@ -401,7 +409,7 @@ namespace gamelogic
 
         private void MoveMissile(EntityId missile, float deltaTime)
         {
-            var g = new Float3() { X = 0, Y = -9.81f, Z = 0 };
+            var g = new float3() { X = 0, Y = -9.81f, Z = 0 };
 
             // Get the necessary components of the missile
             var motion = _ecs.GetComponent<MotionComponent>(missile);
@@ -428,7 +436,7 @@ namespace gamelogic
             // If so, spawn a missile
         }
 
-        public EntityId SpawnMissileLauncher(EntityResourceId resourceId, Float3 position, Float3 direction)
+        public EntityId SpawnMissileLauncher(EntityResourceId resourceId, float3 position, float3 direction)
         {
             // Create a missile launcher entity
             return new EntityId();
@@ -473,9 +481,9 @@ namespace gamelogic
         public MeshResourceId MeshResourceId; // The mesh to render the missile launcher
         public SoundResourceId SoundResourceId; // Sound Effect to Play upon firing
         public VisualFxResourceId VisualFxResourceId; // Visual Effect to Spawn upon firing
-        public Float3 Size; // Size of the missile launcher
+        public float3 Size; // Size of the missile launcher
     }
-    
+
     public class MissileLauncherComponent : IEntityComponent
     {
         public RenderInstanceId _meshInstanceId;
